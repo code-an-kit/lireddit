@@ -1,18 +1,19 @@
-import { MikroORM } from "@mikro-orm/core"
-import { COOKI_NAME, _prod_ } from "./constants";
-import mikroConfig from "./mikro-orm.config";
-import express from 'express';
+import { MikroORM } from "@mikro-orm/core";
 import { ApolloServer } from "apollo-server-express";
+import RedisStore from "connect-redis";
+import cors from "cors";
+import express from 'express';
+import session from "express-session";
+import { createClient } from "redis";
 import { buildSchema } from "type-graphql";
+import { COOKI_NAME } from "./constants";
+import mikroConfig from "./mikro-orm.config";
+import { UserResolver } from "./resolvers/User";
 import { HelloResolver } from "./resolvers/hello";
 import { PostResolver } from "./resolvers/post";
-import { UserResolver } from "./resolvers/User";
-import session from "express-session";
-import {createClient} from "redis";
-import RedisStore from "connect-redis";
-import cors from "cors"
 
 const main =async () => {
+    
     const orm = await MikroORM.init(mikroConfig);
     const emFork = orm.em.fork();
     await orm.getMigrator().up();
