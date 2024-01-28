@@ -4,7 +4,7 @@ import RedisStore from "connect-redis";
 import cors from "cors";
 import express from 'express';
 import session from "express-session";
-import { createClient } from "redis";
+import { Redis } from "ioredis";
 import { buildSchema } from "type-graphql";
 import { COOKI_NAME } from "./constants";
 import mikroConfig from "./mikro-orm.config";
@@ -20,13 +20,14 @@ const main =async () => {
 
     const app = express();
 
-    const redisClient = createClient({ legacyMode: false });
+    // const redisClient = createClient({ legacyMode: false });
+    const redis = new Redis({})
 
-    redisClient.on("connect", () => console.log("Connected to Redis!"));
-    redisClient.on("error", (err: Error) =>
+    redis.on("connect", () => console.log("Connected to Redis!"));
+    redis.on("error", (err: Error) =>
       console.log("Redis Client Error", err)
     );
-   await redisClient.connect();
+//    await redis.connect();
     app.use(
         cors({
             origin: "http://localhost:3000",
@@ -38,7 +39,7 @@ const main =async () => {
         session({
             name: COOKI_NAME,
             store: new (RedisStore as any)({
-                client: redisClient,
+                client: redis,
                 disableTouch: true,
             }),
             cookie: {
@@ -59,7 +60,7 @@ const main =async () => {
             resolvers: [HelloResolver, PostResolver, UserResolver],
             validate: false
         }),
-        context: ({req, res}) => ({em : emFork, req, res})
+        context: ({req, res}) => ({em : emFork, req, res, redis})
     })
 
     await apolloServer.start();
