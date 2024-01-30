@@ -12,7 +12,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-const core_1 = require("@mikro-orm/core");
+require("reflect-metadata");
 const apollo_server_express_1 = require("apollo-server-express");
 const connect_redis_1 = __importDefault(require("connect-redis"));
 const cors_1 = __importDefault(require("cors"));
@@ -21,14 +21,30 @@ const express_session_1 = __importDefault(require("express-session"));
 const ioredis_1 = require("ioredis");
 const type_graphql_1 = require("type-graphql");
 const constants_1 = require("./constants");
-const mikro_orm_config_1 = __importDefault(require("./mikro-orm.config"));
 const User_1 = require("./resolvers/User");
 const hello_1 = require("./resolvers/hello");
 const post_1 = require("./resolvers/post");
+const typeorm_1 = require("typeorm");
+const Post_1 = require("./entities/Post");
+const User_2 = require("./entities/User");
+const conn = new typeorm_1.DataSource({
+    type: "postgres",
+    database: "lireddit2",
+    username: 'postgres',
+    password: 'Ankit@123',
+    logging: true,
+    synchronize: true,
+    migrations: ["../migrations/*"],
+    entities: [Post_1.Post, User_2.User]
+});
+conn.initialize()
+    .then(() => {
+    console.log("Data Source has been initialized!");
+})
+    .catch((err) => {
+    console.error("Error during Data Source initialization", err);
+});
 const main = () => __awaiter(void 0, void 0, void 0, function* () {
-    const orm = yield core_1.MikroORM.init(mikro_orm_config_1.default);
-    const emFork = orm.em.fork();
-    yield orm.getMigrator().up();
     const app = express_1.default();
     const redis = new ioredis_1.Redis({});
     redis.on("connect", () => console.log("Connected to Redis!"));
@@ -59,7 +75,7 @@ const main = () => __awaiter(void 0, void 0, void 0, function* () {
             resolvers: [hello_1.HelloResolver, post_1.PostResolver, User_1.UserResolver],
             validate: false
         }),
-        context: ({ req, res }) => ({ em: emFork, req, res, redis })
+        context: ({ req, res }) => ({ req, res, redis })
     });
     yield apolloServer.start();
     apolloServer.applyMiddleware({
@@ -73,4 +89,5 @@ const main = () => __awaiter(void 0, void 0, void 0, function* () {
 main().catch((err) => {
     console.log('error is', err);
 });
+exports.default = conn;
 //# sourceMappingURL=index.js.map

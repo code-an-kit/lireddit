@@ -1,13 +1,14 @@
+
 import { User } from "../entities/User";
 import { MyContext } from "src/types";
 import { Arg, Ctx, Field, Mutation, ObjectType, Query, Resolver } from "type-graphql";
 import argon2 from "argon2";
-import { EntityManager } from "@mikro-orm/postgresql";
 import { COOKI_NAME, FORGET_PASWORD_PREFIX } from "../constants";
 import { UsernamePasswordInput } from "../utils/UsernamePasswordInput";
 import { validateRegister } from "../utils/validateRegister";
 import { sendEmail } from "../utils/sendEmail";
 import { v4 } from "uuid";
+
 
 @ObjectType()
 class FieldError{
@@ -30,37 +31,34 @@ export class UserResolver{
 
     @Query(()=> [User])
     registers(
-        @Ctx() {em}: MyContext
+        @Ctx() {}: MyContext
     ): Promise<User[]>{
-        return em.find(User, {});
+        return User.find();
     }
 
     @Query(() => User, { nullable: true })
-    async me(@Ctx() { req, em }: MyContext) {
+    me(@Ctx() { req }: MyContext) {
       // you are not logged in
       if (!req.session.userId) {
         return null;
-      }
-      
-      const user = await em.findOne(User, { _id :req.session.userId});
-      return user;
+      }      
+      return User.findOne({ id: req.session.userId});
     }
 
     @Mutation(()=> Boolean)
     async forgotPassword(
         @Arg('email') email: string,
-        @Ctx() {em, redis} : MyContext
+        @Ctx() {redis} : MyContext
     ){
-        const user = await em.findOne(User, {email})
-        console.log("user from forgot password",user)
+        const user = await User.findOne({where: {email}})
         if(!user){
             return true;
         }
 
         const token = v4();
-        await redis.set(FORGET_PASWORD_PREFIX + token, user._id, "EX", 1000*60*60*24*3)
+        await redis.set(FORGET_PASWORD_PREFIX + token, user.id, "EX", 1000*60*60*24*3)
     
-        await sendEmail(email, `<a href='https://localhost:3000/change-password/${token}'>Reset Password</a>`)
+        await sendEmail(email, `<a href='http://localhost:3000/change-password/${token}'>Reset Password</a>`)
 
         return false
     }
@@ -68,17 +66,17 @@ export class UserResolver{
 
     @Mutation(()=> Boolean)
     async deleteRegister(
-        @Arg("_id") _id: number,
-        @Ctx() {em}: MyContext
+        @Arg("id") id: number,
+        @Ctx() {}: MyContext
     ): Promise<boolean>{
-        await em.nativeDelete(User, _id)        
+        await User.delete(id);       
         return true;
     }
 
     @Mutation(()=> UserResponse)
     async register(
         @Arg('options') options: UsernamePasswordInput,
-        @Ctx() {em, req}: MyContext
+        @Ctx() { req}: MyContext
     ): Promise<UserResponse>{
         console.log("register", options)
         const errors = validateRegister(options);
@@ -88,16 +86,21 @@ export class UserResolver{
         const hashedPassword = await argon2.hash(options.password)
         let user: User;
         try{
-            const result = await (em as EntityManager).createQueryBuilder(User).getKnexQuery().insert({
-                username: options.username,
-                created_at: new Date(),
-                email: options.email,
-                updated_at: new Date(),
-                password: hashedPassword
-            }).returning("*");
+            const result = await User.createQueryBuilder()
+                .insert()
+                .into(User)
+                .values(
+                    {
+                        username: options.username,
+                        email: options.email,
+                        password: hashedPassword
+                    }
+                ).returning('*')
+                .execute();
 
-            user = result[0];
-            // await em.persistAndFlush(user)
+            console.log("result object", result)
+            
+            user =  result.raw[0];
         }catch(err){
             console.log(err)
            if( err.code === "23505"){
@@ -109,7 +112,7 @@ export class UserResolver{
             }
            }
         }
-        req.session.userId = user._id;
+        req.session.userId = user.id;
         return {
             user
         };
@@ -119,9 +122,12 @@ export class UserResolver{
     async login(
         @Arg('usernameorEmail') usernameorEmail: string,
         @Arg('password') password: string,
-        @Ctx() {em, req}: MyContext
+        @Ctx() { req}: MyContext
     ): Promise<UserResponse> {
-        const user = await em.findOne(User, usernameorEmail.includes("@") ? {email: usernameorEmail}: {username: usernameorEmail});
+        const user = await User.findOne(usernameorEmail.includes("@") ? 
+            { where : {email: usernameorEmail}}:
+            { where: {username: usernameorEmail}}
+        );
         if(!user){
             return {
                errors: [
@@ -147,7 +153,7 @@ export class UserResolver{
             }
         };
 
-        req.session.userId = user._id;
+        req.session.userId = user.id;
 
         return {
             user,
@@ -173,7 +179,7 @@ export class UserResolver{
     async changePassword(
         @Arg('token') token: string,
         @Arg('newPassword') newPassword: string,
-        @Ctx() {em, req, redis}: MyContext
+        @Ctx() { req, redis}: MyContext
     ){
         if(newPassword.length <= 2){
             return [
@@ -197,7 +203,8 @@ export class UserResolver{
             }
         }
 
-        const user = await em.findOne(User, {_id: parseInt(userId)})
+        const userIDNum = parseInt(userId)
+        const user = await User.findOne(userIDNum)
 
         if(!user){
             return {
@@ -210,11 +217,15 @@ export class UserResolver{
             }
         }
 
-        user.password =  await argon2.hash(newPassword);
+        await User.update(
+            {id: userIDNum},
+            {password: await argon2.hash(newPassword)}
+        )
 
         await redis.del(key)
         // login user afte chnaging pasword
-        req.session.userId = user._id;
+        console.log("user to login again", user,  req.session.userId)
+        req.session.userId = user.id;
 
         return {
             user
