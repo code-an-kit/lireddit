@@ -7,4 +7,4 @@ exports.isAuth = ({ context }, next) => {
     }
     return next();
 };
-//# sourceMappingURL=isAUth.js.map
+//# sourceMappingURL=isAuth.js.map
