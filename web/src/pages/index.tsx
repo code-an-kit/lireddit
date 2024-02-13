@@ -1,21 +1,87 @@
 import { withUrqlClient } from "next-urql";
-import { NavBar } from "../components/NavBar";
 import { createUrqlClient } from "../utils/createUrqlClient";
 import { usePostsQuery } from "../gql/graphql";
+import { Layout } from "../components/layout";
+import Link from "next/link";
+import {
+  Box,
+  Button,
+  Flex,
+  Heading,
+  IconButton,
+  Spacer,
+  Stack,
+  Text,
+} from "@chakra-ui/react";
+import { useState } from "react";
 
 const Index = () => {
-  const [{ data }] = usePostsQuery();
+  const [variables, setVariables] = useState({
+    limit: 15,
+    cursor: null as null | string,
+  });
+  console.log("variables", variables);
+  const [{ data, fetching }] = usePostsQuery({
+    variables,
+  });
+
+  console.log(data);
+
+  if (!fetching && !data) {
+    return <div>Your query got failed</div>;
+  }
+
   return (
-    <>
-      <NavBar />
-      <div>hello world</div>
+    <Layout>
+      <Flex>
+        <Heading>LiReddit</Heading>
+        <Box ml="auto">
+          <Link href="./create-post">create a post</Link>
+        </Box>
+      </Flex>
       <br></br>
-      {!data ? (
+      {!data && fetching ? (
         <div>loading...</div>
       ) : (
-        data.posts.map((p: any) => <div key={p.id}>{p.title}</div>)
+        <Stack spacing={8}>
+          {data!.posts.posts.map((p: any) => (
+            <Flex
+              key={p.title}
+              borderRadius={10}
+              boxShadow="md"
+              py={4}
+              px={6}
+              border="1px"
+              borderColor="gray.200"
+            >
+              <Box>
+                <Heading fontSize="xl">{p.title}</Heading>
+                {p.creator.username}
+                <Text mt={4}>{p.textSnippet}</Text>
+              </Box>
+            </Flex>
+          ))}
+        </Stack>
       )}
-    </>
+      {data && data.posts.hasMore ? (
+        <Flex>
+          <Button
+            m="auto"
+            my={6}
+            onClick={() => {
+              setVariables({
+                limit: variables.limit,
+                cursor: data.posts.posts[data.posts.posts.length - 1].createdAt,
+              });
+            }}
+          >
+            Load more...
+          </Button>
+        </Flex>
+      ) : (
+        ""
+      )}
+    </Layout>
   );
 };
 

@@ -1,4 +1,4 @@
-import { Box, Button, Link } from "@chakra-ui/react";
+import { Box, Button, Flex, Link, Spacer } from "@chakra-ui/react";
 import { Formik, Form } from "formik";
 import { NextPage } from "next";
 import { InputField } from "../../components/InputField";
@@ -10,7 +10,7 @@ import { useState } from "react";
 import { withUrqlClient } from "next-urql";
 import { createUrqlClient } from "../../utils/createUrqlClient";
 
-const ChangePassword: NextPage<{ token: string }> = ({ token }) => {
+const ChangePassword: NextPage = () => {
   const router = useRouter();
   const [, changePassword] = useChangePassswordMutation();
   const [tokenError, setTokenError] = useState("");
@@ -22,7 +22,8 @@ const ChangePassword: NextPage<{ token: string }> = ({ token }) => {
           console.log("values of newpassword", values);
           const response = await changePassword({
             newPassword: values.newPassword,
-            token,
+            token:
+              typeof router.query.token === "string" ? router.query.token : "",
           });
           console.log("values of newpassword", response);
           if (response.data?.changePassword.errors) {
@@ -49,15 +50,14 @@ const ChangePassword: NextPage<{ token: string }> = ({ token }) => {
                 {tokenError}
               </Box>
             ) : null}
-            <Link href="/forgot-password">get the new Link</Link>
-            <Button
-              mt={4}
-              type="submit"
-              colorScheme="teal"
-              isLoading={isSubmitting}
-            >
-              Change Password
-            </Button>
+
+            <Flex mt={4}>
+              <Link href="/forgot-password">get the new Link</Link>
+              <Spacer />
+              <Button type="submit" colorScheme="teal" isLoading={isSubmitting}>
+                Change Password
+              </Button>
+            </Flex>
           </Form>
         )}
       </Formik>
@@ -65,10 +65,10 @@ const ChangePassword: NextPage<{ token: string }> = ({ token }) => {
   );
 };
 
-ChangePassword.getInitialProps = ({ query }) => {
-  return {
-    token: query.token as string,
-  };
-};
+// ChangePassword.getInitialProps = ({ query }) => {
+//   return {
+//     token: query.token as string,
+//   };
+// };
 
 export default withUrqlClient(createUrqlClient, { ssr: true })(ChangePassword);

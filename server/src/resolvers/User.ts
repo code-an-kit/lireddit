@@ -1,13 +1,14 @@
 
 import { User } from "../entities/User";
 import { MyContext } from "src/types";
-import { Arg, Ctx, Field, Mutation, ObjectType, Query, Resolver } from "type-graphql";
+import { Arg, Ctx, Field, FieldResolver, Mutation, ObjectType, Query, Resolver, Root } from "type-graphql";
 import argon2 from "argon2";
 import { COOKI_NAME, FORGET_PASWORD_PREFIX } from "../constants";
 import { UsernamePasswordInput } from "../utils/UsernamePasswordInput";
 import { validateRegister } from "../utils/validateRegister";
 import { sendEmail } from "../utils/sendEmail";
 import { v4 } from "uuid";
+import { Post } from "src/entities/Post";
 
 
 @ObjectType()
@@ -26,8 +27,18 @@ class UserResponse{
     user?: User;
 }
 
-@Resolver()
+@Resolver(User)
 export class UserResolver{
+
+    @FieldResolver(() =>String)
+    email(@Root() user: User, @Ctx() {req}:MyContext){
+    // this is the currrent user and its okay to show its own email
+       if(req.session.userId === user.id){
+        return user.email
+       }
+    // current user wants to watch someone else's email
+       return ""
+    }
 
     @Query(()=> [User])
     registers(
@@ -39,10 +50,11 @@ export class UserResolver{
     @Query(() => User, { nullable: true })
     me(@Ctx() { req }: MyContext) {
       // you are not logged in
+      console.log("req.session.userId from me query", req.session)
       if (!req.session.userId) {
         return null;
       }      
-      return User.findOne({ id: req.session.userId});
+      return User.findOneBy({ id : req.session.userId});
     }
 
     @Mutation(()=> Boolean)
@@ -98,7 +110,7 @@ export class UserResolver{
                 ).returning('*')
                 .execute();
 
-            console.log("result object", result)
+            // console.log("result object", result)
             
             user =  result.raw[0];
         }catch(err){
@@ -154,6 +166,7 @@ export class UserResolver{
         };
 
         req.session.userId = user.id;
+        console.log("req.session.userId from login", req.session)
 
         return {
             user,
@@ -204,7 +217,7 @@ export class UserResolver{
         }
 
         const userIDNum = parseInt(userId)
-        const user = await User.findOne(userIDNum)
+        const user = await User.findOneBy({id :userIDNum})
 
         if(!user){
             return {
@@ -224,7 +237,7 @@ export class UserResolver{
 
         await redis.del(key)
         // login user afte chnaging pasword
-        console.log("user to login again", user,  req.session.userId)
+        // console.log("user to login again", user,  req.session.userId)
         req.session.userId = user.id;
 
         return {

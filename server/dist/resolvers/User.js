@@ -60,14 +60,21 @@ UserResponse = __decorate([
     type_graphql_1.ObjectType()
 ], UserResponse);
 let UserResolver = class UserResolver {
+    email(user, { req }) {
+        if (req.session.userId === user.id) {
+            return user.email;
+        }
+        return "";
+    }
     registers({}) {
         return User_1.User.find();
     }
     me({ req }) {
+        console.log("req.session.userId from me query", req.session);
         if (!req.session.userId) {
             return null;
         }
-        return User_1.User.findOne({ id: req.session.userId });
+        return User_1.User.findOneBy({ id: req.session.userId });
     }
     forgotPassword(email, { redis }) {
         return __awaiter(this, void 0, void 0, function* () {
@@ -106,7 +113,6 @@ let UserResolver = class UserResolver {
                     password: hashedPassword
                 }).returning('*')
                     .execute();
-                console.log("result object", result);
                 user = result.raw[0];
             }
             catch (err) {
@@ -156,6 +162,7 @@ let UserResolver = class UserResolver {
             }
             ;
             req.session.userId = user.id;
+            console.log("req.session.userId from login", req.session);
             return {
                 user,
             };
@@ -195,7 +202,7 @@ let UserResolver = class UserResolver {
                 };
             }
             const userIDNum = parseInt(userId);
-            const user = yield User_1.User.findOne(userIDNum);
+            const user = yield User_1.User.findOneBy({ id: userIDNum });
             if (!user) {
                 return {
                     errors: [
@@ -208,7 +215,6 @@ let UserResolver = class UserResolver {
             }
             yield User_1.User.update({ id: userIDNum }, { password: yield argon2_1.default.hash(newPassword) });
             yield redis.del(key);
-            console.log("user to login again", user, req.session.userId);
             req.session.userId = user.id;
             return {
                 user
@@ -216,6 +222,13 @@ let UserResolver = class UserResolver {
         });
     }
 };
+__decorate([
+    type_graphql_1.FieldResolver(() => String),
+    __param(0, type_graphql_1.Root()), __param(1, type_graphql_1.Ctx()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [User_1.User, Object]),
+    __metadata("design:returntype", void 0)
+], UserResolver.prototype, "email", null);
 __decorate([
     type_graphql_1.Query(() => [User_1.User]),
     __param(0, type_graphql_1.Ctx()),
@@ -280,7 +293,7 @@ __decorate([
     __metadata("design:returntype", Promise)
 ], UserResolver.prototype, "changePassword", null);
 UserResolver = __decorate([
-    type_graphql_1.Resolver()
+    type_graphql_1.Resolver(User_1.User)
 ], UserResolver);
 exports.UserResolver = UserResolver;
 //# sourceMappingURL=User.js.map

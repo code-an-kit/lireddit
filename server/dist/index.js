@@ -27,6 +27,8 @@ const post_1 = require("./resolvers/post");
 const typeorm_1 = require("typeorm");
 const Post_1 = require("./entities/Post");
 const User_2 = require("./entities/User");
+const path_1 = __importDefault(require("path"));
+const Updoot_1 = require("./entities/Updoot");
 const conn = new typeorm_1.DataSource({
     type: "postgres",
     database: "lireddit2",
@@ -34,17 +36,18 @@ const conn = new typeorm_1.DataSource({
     password: 'Ankit@123',
     logging: true,
     synchronize: true,
-    migrations: ["../migrations/*"],
-    entities: [Post_1.Post, User_2.User]
-});
-conn.initialize()
-    .then(() => {
-    console.log("Data Source has been initialized!");
-})
-    .catch((err) => {
-    console.error("Error during Data Source initialization", err);
+    migrations: [path_1.default.join(__dirname, "./migrations/*")],
+    entities: [Post_1.Post, User_2.User, Updoot_1.Updoot]
 });
 const main = () => __awaiter(void 0, void 0, void 0, function* () {
+    conn.initialize()
+        .then(() => {
+        conn.runMigrations();
+        console.log("Data Source has been initialized!");
+    })
+        .catch((err) => {
+        console.error("Error during Data Source initialization", err);
+    });
     const app = express_1.default();
     const redis = new ioredis_1.Redis({});
     redis.on("connect", () => console.log("Connected to Redis!"));

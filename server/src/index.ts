@@ -13,6 +13,8 @@ import { PostResolver } from "./resolvers/post";
 import { DataSource } from "typeorm";
 import { Post } from "./entities/Post";
 import { User } from "./entities/User";
+import path from "path";
+import { Updoot } from "./entities/Updoot";
 
 const conn = new DataSource({
     type: "postgres",
@@ -21,22 +23,27 @@ const conn = new DataSource({
     password: 'Ankit@123',
     logging: true,
     synchronize: true, 
-    migrations: ["../migrations/*"],
-    entities: [Post, User]
+    migrations: [path.join(__dirname, "./migrations/*")],
+    entities: [Post, User, Updoot]
 })
 
+    
+
+// console.log("conn is from index",conn)
+
+const main = async () => {
     conn.initialize()
         .then(() => {
+            conn.runMigrations()
+            
             console.log("Data Source has been initialized!")
         })
         .catch((err) => {
             console.error("Error during Data Source initialization", err)
     })
-
-// console.log("conn is from index",conn)
-
-const main = async () => {
     
+    // await Post.delete({})
+
     const app = express();
 
     // const redisClient = createClient({ legacyMode: false });
@@ -53,8 +60,9 @@ const main = async () => {
             credentials: true
          })
     );
+
     // Initialize sesssion storage.
-        app.use(
+    app.use(
         session({
             name: COOKI_NAME,
             store: new (RedisStore as any)({
