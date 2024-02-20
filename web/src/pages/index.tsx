@@ -3,17 +3,9 @@ import { createUrqlClient } from "../utils/createUrqlClient";
 import { usePostsQuery } from "../gql/graphql";
 import { Layout } from "../components/layout";
 import Link from "next/link";
-import {
-  Box,
-  Button,
-  Flex,
-  Heading,
-  IconButton,
-  Spacer,
-  Stack,
-  Text,
-} from "@chakra-ui/react";
+import { Box, Button, Flex, Heading, Stack, Text } from "@chakra-ui/react";
 import { useState } from "react";
+import { UpdootSection } from "../components/UpdootSection";
 
 const Index = () => {
   const [variables, setVariables] = useState({
@@ -54,6 +46,7 @@ const Index = () => {
               border="1px"
               borderColor="gray.200"
             >
+              <UpdootSection post={p} />
               <Box>
                 <Heading fontSize="xl">{p.title}</Heading>
                 {p.creator.username}

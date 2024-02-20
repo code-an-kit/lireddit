@@ -1,5 +1,7 @@
-import { Query, PaginatedPosts } from './../gql/graphql';
-import { fetchExchange, mapExchange, stringifyVariables } from "urql";
+import { Ctx } from 'type-graphql';
+import { isServer } from './isServer';
+import { Query, PaginatedPosts, VoteMutationVariables } from './../gql/graphql';
+import { fetchExchange, gql, mapExchange, stringifyVariables } from "urql";
 import {
     LoginMutation,
     LogoutMutation,
@@ -49,10 +51,19 @@ const cursorPagination = (): Resolver => {
   };
 };
 
-export const createUrqlClient = ((ssrExchange: any) => ({
+export const createUrqlClient = ((ssrExchange: any, Ctx:any) => {
+  let cookie = "";
+  if(isServer()){
+    cookie = Ctx.req.headers.cookie
+  }
+  return  {
     url: "http://localhost:4000/graphql",
     fetchOptions: {
-      credentials: "include"
+      credentials: "include",
+      headers: cookie ? 
+      {
+        cookie
+      } : undefined
     },
     exchanges: [
       cacheExchange({
@@ -61,6 +72,32 @@ export const createUrqlClient = ((ssrExchange: any) => ({
         },
         updates: {
           Mutation: {
+            vote:(_result, args, cache, info)=> {
+              const {postId, value} = args as VoteMutationVariables;
+              const data = cache.readFragment(
+                gql`
+                  fragment _ on Post {
+                    id
+                    points
+                    voteStatus
+                  }
+                `,
+                { id: postId }
+              );
+              if(data){
+                if(data.voteStatus === value){
+                  return
+                }
+                const newPoints = (data.points as number) + (data.voteStatus ? 1 : 2)*value;
+                // const newPoints = (data.points as number) + value;
+                cache.writeFragment( gql`
+                fragment __ on Post {
+                  points
+                  voteStatus
+                }
+              `, { id: postId, points: newPoints, voteStatus: value });
+              }
+            },
             logout: (_result, args, cache, info) => {
               betterUpdateQuery<LogoutMutation, MeQuery>(
                 cache,
@@ -127,4 +164,5 @@ export const createUrqlClient = ((ssrExchange: any) => ({
       ssrExchange,
       fetchExchange,
     ]
-  }))
+  }
+})
