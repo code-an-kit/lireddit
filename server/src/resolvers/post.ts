@@ -155,10 +155,26 @@ export class PostResolver{
     }
 
     @Query(()=> Post, {nullable: true})
-    post(
-        @Arg("id") id: number
+    async post(
+        @Arg("id", ()=> Int) id: number
     ): Promise<Post | null> {
-        return Post.findOneBy({id: id})
+        return Post.findOne({
+            where: {
+                id: id
+            },
+            relations: {
+                creator: true
+            }
+        })
+        // return await conn.getRepository(Post).extend({
+        //     findPostWithCreator() {
+        //         return this.find({
+        //             relations: {
+        //                 creator: true,
+        //             },
+        //         })
+        //     },
+        // })
     }
 
     @Mutation(()=>Post)
