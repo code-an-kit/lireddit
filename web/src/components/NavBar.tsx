@@ -47,7 +47,7 @@ export const NavBar: React.FC<NavBarProps> = ({}) => {
   }
 
   return (
-    <Flex top={0} position={"sticky"} zIndex={1} p={4} ml={"auto"}>
+    <Flex top={0} position={"sticky"} bg={"tan"} zIndex={1} p={4} ml={"auto"}>
       <Flex flex={1} m={"auto"} maxW={800} align="center">
         <Link href="/">
           <Heading>Lireddit</Heading>

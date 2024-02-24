@@ -151,21 +151,23 @@ let PostResolver = class PostResolver {
             return Post_1.Post.create(Object.assign(Object.assign({}, input), { creatorId: req.session.userId })).save();
         });
     }
-    updatePost(id, title) {
+    updatePost(id, title, text, { req }) {
         return __awaiter(this, void 0, void 0, function* () {
-            const post = yield Post_1.Post.findOneBy({ id: id });
-            if (!post) {
-                return null;
-            }
-            if (!title !== undefined) {
-                yield Post_1.Post.update({ id }, { title });
-            }
-            return post;
+            const post = yield Post_1.Post.createQueryBuilder()
+                .update(Post_1.Post)
+                .set({ title, text })
+                .where('id= :id and "creatorId" = :creatorId', {
+                id,
+                creatorId: req.session.userId
+            })
+                .returning("*")
+                .execute();
+            return post.raw[0];
         });
     }
-    deletePost(id) {
+    deletePost(id, { req }) {
         return __awaiter(this, void 0, void 0, function* () {
-            yield Post_1.Post.delete(id);
+            yield Post_1.Post.delete({ id, creatorId: req.session.userId });
             return true;
         });
     }
@@ -214,17 +216,22 @@ __decorate([
 ], PostResolver.prototype, "createPost", null);
 __decorate([
     type_graphql_1.Mutation(() => Post_1.Post, { nullable: true }),
-    __param(0, type_graphql_1.Arg("id")),
+    type_graphql_1.UseMiddleware(isAuth_1.isAuth),
+    __param(0, type_graphql_1.Arg("id", () => type_graphql_1.Int)),
     __param(1, type_graphql_1.Arg("title", () => String, { nullable: true })),
+    __param(2, type_graphql_1.Arg("text")),
+    __param(3, type_graphql_1.Ctx()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Number, String]),
+    __metadata("design:paramtypes", [Number, String, String, Object]),
     __metadata("design:returntype", Promise)
 ], PostResolver.prototype, "updatePost", null);
 __decorate([
     type_graphql_1.Mutation(() => Boolean),
-    __param(0, type_graphql_1.Arg("id")),
+    type_graphql_1.UseMiddleware(isAuth_1.isAuth),
+    __param(0, type_graphql_1.Arg("id", () => type_graphql_1.Int)),
+    __param(1, type_graphql_1.Ctx()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Number]),
+    __metadata("design:paramtypes", [Number, Object]),
     __metadata("design:returntype", Promise)
 ], PostResolver.prototype, "deletePost", null);
 PostResolver = __decorate([

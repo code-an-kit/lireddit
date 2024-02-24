@@ -1,9 +1,11 @@
+import { session } from 'express-session';
 import { isAuth } from './../middleware/isAuth';
 import { Arg, Ctx, Field, FieldResolver, InputType, Int, Mutation, ObjectType, Query, Resolver, Root, UseMiddleware } from "type-graphql";
 import { Post } from "../entities/Post";
 import { MyContext } from "src/types";
 import { Updoot } from '../entities/Updoot';
 import conn from '../index';
+import { Context } from 'vm';
 
 @InputType()
 class PostInput{
@@ -191,28 +193,33 @@ export class PostResolver{
     }
 
     @Mutation(()=>Post, {nullable: true})
+    @UseMiddleware(isAuth)
     async updatePost(
-        @Arg("id") id: number,
-        @Arg("title", ()=> String, {nullable: true}) title: string
+        @Arg("id",()=> Int) id: number,
+        @Arg("title", ()=> String, {nullable: true}) title: string,
+        @Arg("text") text:string,
+        @Ctx() {req}: MyContext
     ): Promise<Post | null>{
-        const post = await Post.findOneBy({id: id})
+        const post = await Post.createQueryBuilder()
+        .update(Post)
+        .set({title, text})
+        .where('id= :id and "creatorId" = :creatorId', {
+            id,
+            creatorId: req.session.userId
+         })
+        .returning("*")
+        .execute()
 
-        if(!post){
-            return null
-        }
-
-        if(!title !== undefined){
-            await Post.update({id}, {title})
-        }
-
-        return post;
+        return post.raw[0];
     }
 
     @Mutation(()=> Boolean)
+    @UseMiddleware(isAuth)
     async deletePost( 
-        @Arg("id") id: number 
+        @Arg("id", ()=>Int) id: number ,
+        @Ctx() {req}: Context
     ): Promise<boolean>{
-       await Post.delete(id)
+       await Post.delete({id, creatorId: req.session.userId})
        return true;
     }
 }

@@ -1,6 +1,6 @@
 import { Ctx } from 'type-graphql';
 import { isServer } from './isServer';
-import { Query, PaginatedPosts, VoteMutationVariables } from './../gql/graphql';
+import { Query, PaginatedPosts, VoteMutationVariables, DeletePostDocument, DeletePostMutationVariables } from './../gql/graphql';
 import { fetchExchange, gql, mapExchange, stringifyVariables } from "urql";
 import {
     LoginMutation,
@@ -54,7 +54,7 @@ const cursorPagination = (): Resolver => {
 export const createUrqlClient = ((ssrExchange: any, Ctx:any) => {
   let cookie = "";
   if(isServer()){
-    cookie = Ctx.req.headers.cookie
+    cookie = Ctx?.req?.headers?.cookie
   }
   return  {
     url: "http://localhost:4000/graphql",
@@ -105,6 +105,11 @@ export const createUrqlClient = ((ssrExchange: any, Ctx:any) => {
                 _result,
                 () => ({ me: null })
               );
+              const allFields = cache.inspectFields("Query")
+              const fieldInfos = allFields.filter(info => info.fieldName === 'posts')
+              fieldInfos.forEach(fi => {
+                cache.invalidate("Query", "posts", fi.arguments || {})
+              })
             },
             login: (_result, args, cache, info) => {
               betterUpdateQuery<LoginMutation, MeQuery>(
@@ -112,6 +117,7 @@ export const createUrqlClient = ((ssrExchange: any, Ctx:any) => {
                 { query: MeDocument },
                 _result,
                 (result, query) => {
+                  console.log("hjdcj")
                   if (result.login.errors) {
                     return query;
                   } else {
@@ -121,6 +127,11 @@ export const createUrqlClient = ((ssrExchange: any, Ctx:any) => {
                   }
                 }
               );
+              const allFields = cache.inspectFields("Query")
+              const fieldInfos = allFields.filter(info => info.fieldName === 'posts')
+              fieldInfos.forEach(fi => {
+                cache.invalidate("Query", "posts", fi.arguments || {})
+              })
             },
             register: (_result, args, cache, info) => {
               betterUpdateQuery<RegisterMutation, MeQuery>(
@@ -145,6 +156,12 @@ export const createUrqlClient = ((ssrExchange: any, Ctx:any) => {
                 cache.invalidate("Query", "posts", fi.arguments || {})
               })
               
+            },
+            deletePost: (_result, args, cache, info) =>{
+              cache.invalidate({
+                __typename: "Post",
+                id: (args as DeletePostMutationVariables).id
+              })
             }
           },
         },
